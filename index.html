@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>オフ会受付＆管理</title>
+</head>
+<body>
+  <h1>🎉 オフ会受付フォーム</h1>
+  <input type="text" id="name" placeholder="名前を入力" />
+  <button onclick="submitForm()">参加する</button>
+  <p id="status"></p>
+
+  <hr>
+
+  <h2>🔐 管理者ログイン</h2>
+  <input type="password" id="pw" placeholder="パスワード">
+  <button onclick="login()">ログイン</button>
+
+  <div id="list" style="display:none;">
+    <h3>📋 参加者一覧</h3>
+    <ul id="entries"></ul>
+  </div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxMkip0iAB3ZysIxhQ4BaV6oPfG_VpZJNY7chZP9nV6A166tciMlSbrnzr2EXZLyByc/exec";
+    const PASSWORD = "momiji10";
+
+    async function getIP() {
+      const res = await fetch("https://api.ipify.org?format=json");
+      const json = await res.json();
+      return json.ip;
+    }
+
+    async function submitForm() {
+      const name = document.getElementById("name").value;
+      const ip = await getIP();
+      const status = document.getElementById("status");
+
+      if (!name) {
+        status.textContent = "名前を入力してください";
+        return;
+      }
+
+      fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({ name, ip }),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(res => res.text())
+      .then(text => {
+        if (text.includes("重複")) {
+          status.textContent = "すでに登録されています。";
+        } else {
+          status.textContent = "参加を受け付けました！";
+        }
+      })
+      .catch(() => {
+        status.textContent = "送信に失敗しました。";
+      });
+    }
+
+    async function login() {
+      const input = document.getElementById("pw").value;
+      if (input !== PASSWORD) {
+        alert("パスワードが違います");
+        return;
+      }
+      document.getElementById("list").style.display = "block";
+
+      const sheetUrl = "https://docs.google.com/spreadsheets/d/19fngs0LLsK4_4E53KLLdBRd_HLmQHlOrhMwXo94zIcc/gviz/tq?tqx=out:json";
+
+      fetch(sheetUrl)
+        .then(res => res.text())
+        .then(txt => {
+          const json = JSON.parse(txt.substr(47).slice(0, -2));
+          const rows = json.table.rows;
+          const ul = document.getElementById("entries");
+          ul.innerHTML = "";
+          rows.forEach(row => {
+            const name = row.c[0]?.v || "（無記名）";
+            const ip = row.c[1]?.v || "IP不明";
+            const time = row.c[2]?.v || "時間不明";
+            const li = document.createElement("li");
+            li.textContent = `${name}（${ip}） - ${time}`;
+            ul.appendChild(li);
+          });
+        })
+        .catch(() => alert("参加者一覧の読み込みに失敗しました"));
+    }
+  </script>
+</body>
+</html>
